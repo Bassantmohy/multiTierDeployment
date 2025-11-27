@@ -1,0 +1,59 @@
+services:
+  mysql-db:
+    build:
+      context: ./mysql-docker
+    image: app-db-image
+    container_name: app-db
+    ports:
+      - "3306:3306"
+    volumes:
+      - appdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s      
+      timeout: 5s        
+      retries: 12        
+      start_period: 70s  
+
+  vprocache01:
+    image: memcached
+    container_name: app-memcache
+    ports:
+      - "11211:11211"
+
+  vpromq01:
+    image: rabbitmq
+    container_name: app-rmq
+    ports:
+      - "5672:5672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  vproapp:
+    build:
+      context: ./tomcat-docker
+    image: vapp
+    container_name: vapp
+    ports:
+      - "8080:8080"
+    volumes:
+      - vappdata:/usr/local/tomcat/webapps
+    depends_on:
+      mysql-db:
+        condition: service_healthy
+    
+  vproweb:
+    build:
+      context: ./web-nginx-docker
+    image: vweb
+    container_name: vweb
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - vproapp
+
+volumes:
+  appdata: {}
+  vappdata: {}
